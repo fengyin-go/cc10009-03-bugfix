@@ -70,5 +70,27 @@ npm run build
 - 状态流转只允许在 `local-service.ts` 里改，页面组件不做业务判断。
 - 想回到初始数据：清掉浏览器里 `scraper-config-studio:entries` 这一项，或调用 `resetModule(模块)`。
 
+## 代理健康链路（PROX-31）
+
+代理池管理页在通用 CRUD 之外，叠加了一条独立的「代理健康域」，数据落在单独的 localStorage 键
+`scraper-config-studio:proxy-health:v1`，与通用条目互不影响：
+
+- 领域模型与持久化：`src/data/proxy-health-types.ts`、`proxy-health-seed.ts`、`proxy-health-store.ts`；
+- 唯一业务裁决处：`src/api/proxy-health-service.ts`，页面（`src/views/proxy/index.vue`）只采集入参、不做判断。
+
+裁决规则：检测前核对代理地址/协议/地域/匿名级别四要素；维护归属到目标站点，非负责人只读；
+健康结果按 可用 → 不可用 → 已移除 裁决，已移除为终态不可跳级回退；检测与移除并发按事件序号串行，
+重复检测在同一分钟窗口内幂等只记一次；新旧冲突以最后一次存活检测为准；恢复后另行给出恢复结果、
+旧失败记录留档；并联动同步采集批次台账的不可用节点数、修正代理路由残留的旧地址，
+使代理池列表与采集批次详情一致。跳级、越权、未授权修改全部挡下并写入操作审计。
+
+自检（无需浏览器，esbuild 打包后在 Node 运行，覆盖上述每条规则，共 47 项断言）：
+
+```bash
+cd frontend
+npm run check:proxy-health
+```
+
+
 领域：数据工程
 子方向：数据采集、爬虫与RPA
